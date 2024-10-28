@@ -12,6 +12,14 @@ node_modules
 .env.test.local
 .env.production.local
 
+# Ignore .env and node_modules in any subdirectory of apps
+apps/**/.env
+apps/**/.env.local
+apps/**/.env.development.local
+apps/**/.env.test.local
+apps/**/.env.production.local
+apps/**/node_modules
+
 # Testing
 coverage
 
