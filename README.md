@@ -1,81 +1,100 @@
-# Turborepo starter
+# Highly Scalable chatApp backend
 
-This is an official starter Turborepo.
+## Architecture Overview
 
-## Using this example
+The backend system is designed with scalability, reliability, and efficiency in mind. It leverages a combination of real-time communication protocols, message brokers, and databases to ensure seamless message delivery and data management across distributed servers. The architecture is capable of handling high traffic while maintaining consistent message distribution across multiple users.
 
-Run the following command:
+## Key Components
 
-```sh
-npx create-turbo@latest
-```
+### 1. **Socket.io Servers**
+   - **Description**: Socket.io servers manage real-time connections between users and the application. Each server instance can handle numerous concurrent connections.
+   - **Functionality**: It listens for incoming messages, events, and notifications from connected users, which are then emitted to relevant users or broadcasted to all connected clients.
 
-## What's inside?
+### 2. **Redis Pub/Sub**
+   - **Description**: Redis acts as a publish/subscribe broker, enabling efficient communication between distributed server instances.
+   - **Functionality**: Each Socket.io server subscribes to Redis channels to receive updates. Messages published to these channels are propagated to all subscribers, ensuring synchronized state across servers.
 
-This Turborepo includes the following packages/apps:
+### 3. **Kafka (Aiven)**
+   - **Description**: Kafka is used as the primary message streaming platform, responsible for queuing messages during high-traffic periods.
+   - **Functionality**: Kafka buffers messages, allowing them to be processed in a reliable, fault-tolerant manner. This ensures that no messages are lost, even when there is a surge in traffic.
 
-### Apps and Packages
+### 4. **PostgreSQL (Aiven)**
+   - **Description**: PostgreSQL serves as the main database for storing persistent data, such as user information, chat histories, and logs.
+   - **Functionality**: Messages and events processed by Kafka consumers are written to PostgreSQL, ensuring a reliable record of all communication.
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+### 5. **Consumer Service**
+   - **Description**: The consumer service is responsible for reading messages from Kafka and processing them.
+   - **Functionality**: The service listens to the Kafka topic, processes each message, and writes it to PostgreSQL for permanent storage. This decouples the message-handling workload from the Socket.io servers, improving scalability.
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+## Message Flow
 
-### Utilities
+1. **User Events**: When a user sends a message or triggers an event, it is captured by the connected Socket.io server.
+2. **Redis Pub/Sub**: The server publishes the message to a Redis channel, which distributes it to all subscribed Socket.io servers.
+3. **Kafka Stream**: Messages are then sent to Kafka, acting as a message buffer and ensuring delivery during high traffic.
+4. **Consumer Service**: A consumer reads the messages from Kafka and writes them to PostgreSQL for permanent storage.
 
-This Turborepo has some additional tools already setup for you:
+## System Diagram
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+Below is a visual representation of the backend architecture:
 
-### Build
+                        +---------------------------+
+                        |       Event Emit          |
+                        |   MESSAGE: hello          |
+                        +---------------------------+
+                                   |
+                                   v
+                         +------------------+
+                         |    Redis - Aiven |       
+                         |  (Pub/Sub Broker)|
+                         +------------------+
+                             /           \
+                            /             \
+               +------------------+    +------------------+
+               |   Server 1       |    |   Server 2       |
+               |   (Socket.io)    |    |   (Socket.io)    |
+               +------------------+    +------------------+
+                      |                         |
+                     /|\                       /|\
+                +------+-----+          +-------+-----+
+                |            |          |             |
+             +------+     +------+    +------+     +------+
+             | User 1|    | User 2|   | User 3|   | User 4|
+             +------+     +------+    +------+     +------+
+                      |                         |
+                      |                         |
+               +------------------+    +------------------+
+               |     Kafka        |    |     Kafka       |
+               |    (Message      |    |    Queue)       |
+               +------------------+    +------------------+
+                                   |
+                                   v
+                       +-------------------------+
+                       |     Consumer Service    |
+                       |   (Node.js)             |
+                       +-------------------------+
+                                   |
+                                   v
+                       +-------------------------+
+                       |   PostgreSQL Database   |
+                       |    (Persistent Storage) |
+                       +-------------------------+
 
-To build all apps and packages, run the following command:
 
-```
-cd my-turborepo
-pnpm build
-```
+# Technologies Used
 
-### Develop
+This project utilizes a variety of technologies to achieve scalability, reliability, and real-time functionality. Below is a summary of the main technologies used:
 
-To develop all apps and packages, run the following command:
+| Technology    | Purpose                                                                 |
+|---------------|-------------------------------------------------------------------------|
+| **Socket.io** | Manages real-time WebSocket connections with clients.                   |
+| **Redis**     | Acts as a Pub/Sub message broker to synchronize data across multiple server instances. |
+| **Kafka**     | Used as a message queue to handle high volumes of data and ensure reliable message processing. |
+| **PostgreSQL**| Provides a reliable relational database for storing user data and chat history. |
+| **Node.js**   | The backend runtime environment to build scalable, asynchronous services. |
+| **Aiven**     | Hosted Redis and Kafka services, offering managed solutions for Redis and Kafka. |
 
-```
-cd my-turborepo
-pnpm dev
-```
+Each of these components plays a key role in ensuring that the backend can handle a large number of simultaneous connections, distribute messages across distributed servers, and persistently store all chat history.
 
-### Remote Caching
+---
 
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup), then enter the following commands:
-
-```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/repo/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/repo/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/repo/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+This architecture allows the backend to be highly scalable and maintain seamless communication across multiple server instances, ensuring reliable message delivery in a real-time chat environment.
