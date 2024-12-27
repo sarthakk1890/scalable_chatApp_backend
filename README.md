@@ -70,7 +70,7 @@ Below is a visual representation of the backend architecture:
                                    v
                        +-------------------------+
                        |     Consumer Service    |
-                       |   (Node.js)             |
+                       |       (Node.js)         |
                        +-------------------------+
                                    |
                                    v
